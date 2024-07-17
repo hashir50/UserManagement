@@ -9,5 +9,6 @@ namespace UserManagement.Domain.Entities
         public string Password { get; set; }
         [DataType(DataType.EmailAddress)]
         public string Email { get; set; }
+        public bool IsEmailVerified { get; set; }
     }
 }

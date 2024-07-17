@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using UserManagement.Domain.Entities;
 using UserManagement.Domain.Models;
+using UserManagement.Infrastructure.Enums;
+using UserManagement.Interface;
 using UserManagement.Service;
 
 namespace UserManagement.Controllers.Api
@@ -10,9 +12,11 @@ namespace UserManagement.Controllers.Api
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
-        public AuthController(IAuthService authService)
+        private readonly ILogService _logService;
+        public AuthController(IAuthService authService, ILogService logService)
         {
             _authService = authService;
+            _logService = logService;
         }
         [HttpPost]
         public IActionResult Authenticate([FromBody] Auth oAuth)
@@ -22,6 +26,8 @@ namespace UserManagement.Controllers.Api
                 var token = _authService.Authenticate(oAuth);
                 if (token == null)
                     return Unauthorized(new { message = "Invalid Credentials" });
+
+                 _logService.TransactionLog(TransactionType.Success, $"User Authenticated Successfully!","Admin").Wait();
 
                 return Ok(new
                 {
@@ -37,6 +43,7 @@ namespace UserManagement.Controllers.Api
                     message = ex.Message,
                     innerException = ex.InnerException?.Message
                 };
+                _logService.TransactionLog(TransactionType.Error, $"message ={ex.Message},innerException = {ex.InnerException?.Message}", "Admin").Wait();
                 return BadRequest(errorDetails);
             }
         }

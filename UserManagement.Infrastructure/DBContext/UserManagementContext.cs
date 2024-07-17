@@ -8,6 +8,8 @@ namespace UserManagement.Infrastructure.DBContext
         {
         }
         public DbSet<User> Users {  get; set; }
+        public DbSet<OTP> Otps {  get; set; }
+        public DbSet<Log> Logs {  get; set; }
         protected override void OnModelCreating(ModelBuilder builder)
         {
             builder.Entity<User>().HasQueryFilter(s => !s.IsDeleted);

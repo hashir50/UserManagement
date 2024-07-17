@@ -2,7 +2,7 @@
 using UserManagement.Domain.Entities;
 using UserManagement.Domain.Models;
 
-namespace UserManagement.Service
+namespace UserManagement.Interface
 {
     public interface IAuthService
     {

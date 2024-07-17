@@ -1,14 +1,18 @@
 using Microsoft.EntityFrameworkCore;
+using UserManagement.Domain.Models;
 using UserManagement.Domain.Repository;
 using UserManagement.Infrastructure.Authorization;
 using UserManagement.Infrastructure.DBContext;
+using UserManagement.Infrastructure.ExternalServices.Email;
 using UserManagement.Infrastructure.Repository;
+using UserManagement.Interface;
 using UserManagement.Service;
 using UserManagement.StartUp.JWT;
 using UserManagement.StartUp.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile("appsettings.json");
+builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection(nameof(SmtpSettings)));
 
 builder.Services.AddDbContext<UserManagementContext>(options => options.UseSqlServer(
     builder.Configuration.GetConnectionString("UserManagementConnection"), b => b.MigrationsAssembly("UserManagement.Infrastructure")));
@@ -25,6 +29,10 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<ILogService, LogService>();
+builder.Services.AddScoped<IOtpService, OtpService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IEmailHelper, EmailHelper>();
 builder.Services.AddScoped<IJwtAuthorization, JwtAuthorization>();
 
 var app = builder.Build();

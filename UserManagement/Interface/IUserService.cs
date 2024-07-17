@@ -1,7 +1,7 @@
 ﻿using UserManagement.Domain.Entities;
 using UserManagement.DTOs;
 
-namespace UserManagement.Service
+namespace UserManagement.Interface
 {
     public interface IUserService
     {
@@ -10,5 +10,6 @@ namespace UserManagement.Service
         Task Edit(UserDTO userDto);
         Task<User> Get(int id);
         Task<IEnumerable<User>> GetAll();
+        Task UpdateVerificationStatus(int id, bool isVerified);
     }
 }

@@ -3,6 +3,7 @@ using UserManagement.Domain.Entities;
 using UserManagement.Domain.Models;
 using UserManagement.Domain.Repository;
 using UserManagement.Infrastructure.Authorization;
+using UserManagement.Interface;
 
 namespace UserManagement.Service
 {

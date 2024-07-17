@@ -1,4 +1,4 @@
-﻿using UserManagement.Service;
+﻿using UserManagement.Interface;
 
 namespace UserManagement.StartUp.Middleware
 {

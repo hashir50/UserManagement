@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 
-namespace UserManagement.Controllers.Api
+namespace UserManagement.Controllers
 {
     public class HomeController : Controller
     {
