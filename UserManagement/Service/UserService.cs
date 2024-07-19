@@ -36,7 +36,7 @@ namespace UserManagement.Service
                 user.Email = userDTO.Email;
                 var emailExist = _userRepository.FirstOrDefault(x => x.Email == user.Email);
                 if (emailExist != null)
-                    throw new Exception("Email Already Exist");
+                    throw new Exception("Please try another email, this email is not available.");
 
                 await _userRepository.InsertAsync(user);
                 await _userRepository.SaveAsync();
@@ -54,7 +54,13 @@ namespace UserManagement.Service
                 var existingUser = await _userRepository.GetByIdAsync(userDto.Id);
                 if (existingUser == null)
                     throw new KeyNotFoundException($"User with ID {userDto.Id} was not found.");
+                if (existingUser.Email != userDto.Email)
+                {
+                    var emailExist = _userRepository.FirstOrDefault(x => x.Email == userDto.Email);
+                    if (emailExist != null)
+                        throw new Exception("Please try another email, this email is not available.");
 
+                }
                 existingUser.UserName = userDto.UserName;
                 existingUser.Password = EncryptDecrypt.Encrypt(userDto.Password);
                 existingUser.Email = userDto.Email;
@@ -131,7 +137,7 @@ namespace UserManagement.Service
                 var user = await this.Get(userId);
                 if (user == null) throw new Exception("User not found.");
 
-                _emailService.SendResetPasswordEmail(user.Email, user.UserName,"");
+                _emailService.SendResetPasswordEmail(user.Email, user.UserName, "");
             }
             catch (Exception)
             {

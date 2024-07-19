@@ -14,11 +14,7 @@ namespace UserManagement.Infrastructure.DBContext
         protected override void OnModelCreating(ModelBuilder builder)
         {
             builder.Entity<User>().HasQueryFilter(s => !s.IsDeleted);
-            builder.Entity<User>()
-                .HasIndex(u => u.Email)
-                .IsUnique();
-
-
+            builder.Entity<OTP>().HasQueryFilter(o => !o.User.IsDeleted);
             base.OnModelCreating(builder);
         }
         }
