@@ -35,7 +35,7 @@ namespace UserManagement.Service
                 throw;
             }
         } 
-        public void SendResetPasswordEmail(string toEmail, string username,string otp)
+        public void SendResetPasswordEmail(string toEmail, string username,string callbackUrl)
         {
             try
             {
@@ -47,7 +47,7 @@ namespace UserManagement.Service
                 string htmlContent = File.ReadAllText(path);
 
                 htmlContent = htmlContent.Replace("[username]", username);
-                htmlContent = htmlContent.Replace("[otp]", otp);
+                htmlContent = htmlContent.Replace("[callbackUrl]", callbackUrl);
 
 
                 _emailHelper.Send(toEmail, subject, htmlContent, true);

@@ -1,4 +1,5 @@
 ﻿using System.Security.Claims;
+using UserManagement.Common;
 using UserManagement.Domain.Entities;
 using UserManagement.Domain.Models;
 using UserManagement.Domain.Repository;
@@ -26,7 +27,7 @@ namespace UserManagement.Service
             try
             {
                 var user = _authRepository.FirstOrDefault(
-                    x => x.Password.Equals(auth.Password) && x.Email.Equals(auth.Email));
+                    x => x.Password.Equals(EncryptDecrypt.Encrypt(auth.Password)) && x.Email.Equals(auth.Email));
                 if (user is null)
                     return null;
                 return this._jwtAuthorization.CreateToken(user.UserName);

@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using System.Reflection.Emit;
 using UserManagement.Domain.Entities;
 namespace UserManagement.Infrastructure.DBContext
 {
@@ -13,6 +14,10 @@ namespace UserManagement.Infrastructure.DBContext
         protected override void OnModelCreating(ModelBuilder builder)
         {
             builder.Entity<User>().HasQueryFilter(s => !s.IsDeleted);
+            builder.Entity<User>()
+                .HasIndex(u => u.Email)
+                .IsUnique();
+
 
             base.OnModelCreating(builder);
         }

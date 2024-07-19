@@ -2,7 +2,11 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using NuGet.Common;
 using Org.BouncyCastle.Crypto;
+using Org.BouncyCastle.Crypto.Generators;
+using System.Text;
+using UserManagement.Common;
 using UserManagement.Domain.Entities;
 using UserManagement.DTOs;
 using UserManagement.Infrastructure.Enums;
@@ -18,11 +22,14 @@ namespace UserManagement.Controllers.Api
         private readonly IUserService _userService;
         private readonly IOtpService _otpService;
         private readonly ILogService _logService;
-        public UsersController(IUserService userService, IOtpService otpService, ILogService logService)
+        private readonly IEmailService _emailService;
+
+        public UsersController(IUserService userService, IOtpService otpService, ILogService logService, IEmailService emailService)
         {
             _userService = userService;
             _otpService = otpService;
             _logService = logService;
+            _emailService = emailService;
         }
 
         [HttpGet]
@@ -132,12 +139,18 @@ namespace UserManagement.Controllers.Api
         }
 
         [HttpPost("verify-email")]
-        public async Task<IActionResult> VerifyEmail(int id)
+        public async Task<IActionResult> VerifyEmail(string email)
         {
             try
             {
-                await _otpService.Send(id);
-                return Ok("Otp Sent SuccessFully!");
+                var user = _userService.GetByEmail(email);
+                if (user is null)
+                {
+                    await _logService.TransactionLog(TransactionType.Success, $"User with Email '{email}' was not found.", "Admin");
+                    return NotFound(new { message = $"User with Email '{email}' was not found." });
+                }
+                await _otpService.Send(user.Id);
+                return Ok(new { message = "Otp Sent SuccessFully!" });
             }
             catch (Exception ex)
             {
@@ -166,13 +179,13 @@ namespace UserManagement.Controllers.Api
                 if (!isVerified)
                 {
                     await _logService.TransactionLog(TransactionType.Success, $"Invalid Or Expired OTP", user.UserName);
-                    return Unauthorized("Invalid Or Expired OTP");
+                    return Unauthorized(new { message = "Invalid Or Expired OTP" });
                 }
 
                 await _userService.UpdateVerificationStatus(userId,true);
                 await _logService.TransactionLog(TransactionType.Success, $"User '{user.UserName}'  Updated Successfully ", "Admin");
 
-                return Ok("Email Verified!");
+                return Ok(new { message = "Email Verified!" });
             }
             catch (Exception ex)
             {
@@ -182,6 +195,126 @@ namespace UserManagement.Controllers.Api
                     innerException = ex.InnerException?.Message
                 };
                 await _logService.TransactionLog(TransactionType.Error, $"message ={ ex.Message},innerException = {ex.InnerException?.Message}", "Admin");
+
+                return BadRequest(errorDetails);
+            }
+        }
+        [HttpPost("forget-password")]
+        public async Task<IActionResult> ForgetPassword(string email)
+        {
+            try
+            {
+                var user = _userService.GetByEmail(email);
+                if (user is null)
+                {
+                    await _logService.TransactionLog(TransactionType.Success, $"User with Email '{email}' was not found.", "Admin");
+                    return NotFound($"User with Email '{email}' was not found.");
+                }
+                
+                if (!user.IsEmailVerified)
+                    return Ok(new { message = "The Email is Not Verified !" });
+                
+                var tokenData = $"{user.Id}::{DateTime.UtcNow.AddMinutes(5):o}";
+                var token= EncryptDecrypt.Encrypt(tokenData);
+                var callbackUrl = Url.Action(nameof(ResetPassword), "Users", new { token = token }, protocol: HttpContext.Request.Scheme);
+
+                _emailService.SendResetPasswordEmail(user.Email,user.UserName,callbackUrl);
+
+                return Ok(new { message = "If the email is registered, you will receive a password reset link." });
+
+            }
+            catch (Exception ex)
+            {
+                var errorDetails = new
+                {
+                    message = ex.Message,
+                    innerException = ex.InnerException?.Message
+                };
+                await _logService.TransactionLog(TransactionType.Error, $"message ={ ex.Message},innerException = {ex.InnerException?.Message}", "Admin");
+
+                return BadRequest(errorDetails);
+            }
+        }
+        [HttpGet("reset-password")]
+        public async Task<IActionResult> ResetPassword(string token)
+        {
+            try
+            {
+                var tokenData = EncryptDecrypt.Decrypt(token);
+                var parts = tokenData.Split("::");
+                
+                if (parts is null || parts?.Length!=2)
+                    return BadRequest(new { message = "Invalid Request" });
+
+                if (!DateTime.TryParse(parts[1], out DateTime expiryDate))
+                    return BadRequest(new { message = "Invalid Request" });
+
+                if (expiryDate<DateTime.Now)
+                    return BadRequest(new { message = "Link Expired" });
+
+                var userId = Convert.ToInt32(parts[0]);
+                var user = _userService.Get(userId);
+
+                if (user is null)
+                    return BadRequest("Invalid Request.");
+
+                return RedirectToAction("ResetPassword", "Home",  new { token = token });
+            }
+            catch (Exception ex)
+            {
+                var errorDetails = new
+                {
+                    message = ex.Message,
+                    innerException = ex.InnerException?.Message
+                };
+                await _logService.TransactionLog(TransactionType.Error, $"message ={ ex.Message},innerException = {ex.InnerException?.Message}", "Admin");
+
+                return BadRequest(errorDetails);
+            }
+        }
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody]ResetPasswordDTO model)
+        {
+            try
+            {
+                var tokenData = EncryptDecrypt.Decrypt(model.Token);
+                var parts = tokenData.Split("::");
+
+                if (parts is null || parts?.Length != 2)
+                    return BadRequest(new { message = "Invalid Request" });
+
+                if (!DateTime.TryParse(parts[1], out DateTime expiryDate))
+                    return BadRequest(new { message = "Invalid Request" });
+
+                if (expiryDate < DateTime.UtcNow)
+                    return BadRequest(new { message = "Link Expired" });
+
+                var userId = Convert.ToInt32(parts[0]);
+                var user = await _userService.Get(userId);
+
+                if (user is null)
+                    return BadRequest("Invalid Request.");
+
+                user.Password = EncryptDecrypt.Encrypt(model.Password);
+                var userDTO = new UserDTO
+                {
+                    Id = user.Id,
+                    UserName = user.UserName,
+                    Email = user.Email,
+                    Password = EncryptDecrypt.Encrypt(model.Password),
+                };
+                await _userService.Edit(userDTO);
+                
+                return Ok(new { message = "Password has been reset successfully." });
+            }
+            catch (Exception ex)
+            {
+                var errorDetails = new
+                {
+                    message = ex.Message,
+                    innerException = ex.InnerException?.Message
+                };
+                await _logService.TransactionLog(TransactionType.Error, $"message ={ex.Message},innerException = {ex.InnerException?.Message}", "Admin");
 
                 return BadRequest(errorDetails);
             }

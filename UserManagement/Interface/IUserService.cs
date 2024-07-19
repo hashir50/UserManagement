@@ -10,6 +10,7 @@ namespace UserManagement.Interface
         Task Edit(UserDTO userDto);
         Task<User> Get(int id);
         Task<IEnumerable<User>> GetAll();
+        User GetByEmail(string email);
         Task UpdateVerificationStatus(int id, bool isVerified);
     }
 }

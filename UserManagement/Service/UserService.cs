@@ -1,4 +1,5 @@
-﻿using UserManagement.Domain.Entities;
+﻿using UserManagement.Common;
+using UserManagement.Domain.Entities;
 using UserManagement.Domain.Repository;
 using UserManagement.DTOs;
 using UserManagement.Infrastructure.Enums;
@@ -10,10 +11,13 @@ namespace UserManagement.Service
     {
         private readonly IGenericRepository<User> _userRepository;
         private readonly ILogService _logService;
-        public UserService(IGenericRepository<User> userRepository, ILogService logService)
+        private readonly IEmailService _emailService;
+
+        public UserService(IGenericRepository<User> userRepository, ILogService logService, IEmailService emailService)
         {
             this._userRepository = userRepository;
             this._logService = logService;
+            this._emailService = emailService;
         }
 
         public async Task<IEnumerable<User>> GetAll()
@@ -28,8 +32,11 @@ namespace UserManagement.Service
             {
                 User user = new();
                 user.UserName = userDTO.UserName;
-                user.Password = userDTO.Password;
+                user.Password = EncryptDecrypt.Encrypt(userDTO.Password);
                 user.Email = userDTO.Email;
+                var emailExist = _userRepository.FirstOrDefault(x => x.Email == user.Email);
+                if (emailExist != null)
+                    throw new Exception("Email Already Exist");
 
                 await _userRepository.InsertAsync(user);
                 await _userRepository.SaveAsync();
@@ -49,7 +56,7 @@ namespace UserManagement.Service
                     throw new KeyNotFoundException($"User with ID {userDto.Id} was not found.");
 
                 existingUser.UserName = userDto.UserName;
-                existingUser.Password = userDto.Password;
+                existingUser.Password = EncryptDecrypt.Encrypt(userDto.Password);
                 existingUser.Email = userDto.Email;
 
                 await _userRepository.Update(existingUser);
@@ -81,7 +88,7 @@ namespace UserManagement.Service
                 throw;
             }
         }
-        public async Task UpdateVerificationStatus(int id,bool isVerified)
+        public async Task UpdateVerificationStatus(int id, bool isVerified)
         {
             try
             {
@@ -90,7 +97,7 @@ namespace UserManagement.Service
                     throw new KeyNotFoundException($"User with ID {id} was not found.");
 
                 existingUser.IsEmailVerified = true;
-                
+
                 await _userRepository.Update(existingUser);
                 await _userRepository.SaveAsync();
                 await _logService.TransactionLog(TransactionType.Success, $"Email verification status Updated Successfully for User {existingUser.UserName}", "Admin");
@@ -103,6 +110,33 @@ namespace UserManagement.Service
             }
 
 
+        }
+        public User GetByEmail(string email)
+        {
+            try
+            {
+                var user = _userRepository.FirstOrDefault(x => x.Email == email);
+                return user;
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
+        public async Task SendResetPasswordEmail(int userId)
+        {
+            try
+            {
+
+                var user = await this.Get(userId);
+                if (user == null) throw new Exception("User not found.");
+
+                _emailService.SendResetPasswordEmail(user.Email, user.UserName,"");
+            }
+            catch (Exception)
+            {
+                throw;
+            }
         }
     }
 }
